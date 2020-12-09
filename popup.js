@@ -1,38 +1,42 @@
-//query active tab to find audio tags and create a volume slider for each one
-chrome.tabs.query({active: true, currentWindow: true}, tabs=> {
-	chrome.tabs.executeScript( tabs[0].id,
-	//{code: "[...document.getElementsByTagName('audio')].map(e=> e.volume = e.volume >= .5? .1 : 1);"},
-	//give each audio element an id if none exists, return element??
-		{code: "[...document.getElementsByTagName('audio')].map((e,i)=> {e.id = e.id || ('audio_'+i);return {id:e.id, volume: e.volume}})"},
-		val=>{
-			console.log('return val: ',val);
-			val[0].forEach(volumeLevel => createSliderPerAudioTag(volumeLevel));
-		}
-)});
+//query active tab to find audio or video tags with active src and create a volume slider for each one
+runCodeOnCurrentTab(
+"[...document.getElementsByTagName('video'),...document.getElementsByTagName('audio')].filter(e=>e.srcObject).map(e=> ({ id: `${e.tagName}_${e.srcObject.id}`, volume: e.volume}))"
+, 
+	ret => {
+		ret = ret.pop();//always seems to wrap return in an array
+		!ret || !ret.length ? createLabelForNoMediaTags() : ret.forEach(mediaTag => createSliderPerMediaTag(mediaTag));
+	}
+);
 
-//create an audio slider for each audio tag and add a label with the audio tag's id
-const createSliderPerAudioTag = (audioTag) => {
+//create a volume slider for each media tag and add a label with the media tag's id
+function createSliderPerMediaTag(mediaTag){
 	const volumeSlider = document.createElement('input');	
 	volumeSlider.type = 'range';
 	volumeSlider.min = 0;
 	volumeSlider.max = 1;
 	volumeSlider.step = .1;
-	volumeSlider.value = audioTag.volume;
-	volumeSlider.id = `slider-${audioTag.id}`;
-	//const setVolume = () => {
-	//console.log('audioTag: ', audioTag);
-	function setVolume(){
-		chrome.tabs.query({active: true, currentWindow: true}, tabs=> {
-			chrome.tabs.executeScript( tabs[0].id,
-			{code: `${audioTag.id}.volume = ${volumeSlider.value}`}
-			//{code: `console.log(${audioTag.id});document.getElementById(${audioTag.id}).volume = ${volumeSlider.value}`}
-		)});
-	};
+	volumeSlider.value = mediaTag.volume;
+	volumeSlider.id = `slider-${mediaTag.id}`;
+	const setVolume = () => runCodeOnCurrentTab(`${mediaTag.id}.volume = ${volumeSlider.value}`,()=>{});
 	volumeSlider.addEventListener('change', setVolume)
 	volumeSlider.addEventListener('input', setVolume)
 	const label = document.createElement('label');
-	label.innerHTML = audioTag.id;
+	label.innerHTML = mediaTag.id;
 	document.body.appendChild(label);
 	document.body.appendChild(volumeSlider);
 };
 
+function createLabelForNoMediaTags() {
+	const label = document.createElement('label');
+	label.innerHTML = 'No audio or video tags found on this page';
+	label.style = 'white-space: nowrap;';
+	document.body.appendChild(label);
+}
+
+function runCodeOnCurrentTab(codeString, callback) {
+	chrome.tabs.query(
+		{active: true, currentWindow: true},
+		tabs=> { chrome.tabs.executeScript( tabs[0].id, {code: codeString},
+		callback)}
+	);
+}

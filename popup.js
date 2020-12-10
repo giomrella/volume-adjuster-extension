@@ -6,10 +6,10 @@ runCodeOnCurrentTab(
     getAllValidMediaTagsCodeString + ".map((e,i)=> {const id = e.id || `${e.tagName}_${i}`; e.id = id;return { id, volume: e.volume, muted: e.muted }})"
     ,
     ret => {
-        ret = ret.pop();//always seems to wrap return in an array
-        if (!ret || !ret.length) {
+        if (!ret || !ret[0] || !ret[0].length) {
             document.body.appendChild(createLabel('No video or audio tags found', 'white-space: nowrap;'));
         } else {
+            ret = ret.pop()
             const masterMutedCheckbox = createCheckbox('checkbox-master', true, muted => {
                 [...document.getElementsByTagName('input')].forEach(e => { if (e.type === 'checkbox') { e.value = e.checked = muted } });
                 runCodeOnCurrentTab(getAllValidMediaTagsCodeString + `.forEach(e=>e.muted=${muted})`);

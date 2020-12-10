@@ -72,7 +72,7 @@ function createSlider(id, volume, eventFunction) {
     volumeSlider.type = 'range';
     volumeSlider.min = 0;
     volumeSlider.max = 1;
-    volumeSlider.step = .1;
+    volumeSlider.step = .01;
     volumeSlider.value = volume;
     volumeSlider.id = `slider-${id}`;
     volumeSlider.addEventListener('change', () => eventFunction(volumeSlider.value));

@@ -1,63 +1,106 @@
 // a code string that gets all video and audio tags with a srcObject
-const getAllValidMediaTagsCodeString = "[...document.getElementsByTagName('video'),...document.getElementsByTagName('audio')].filter(e=>e.srcObject)";
+const getAllValidMediaTagsCodeString = "[...document.getElementsByTagName('video'),...document.getElementsByTagName('audio')].filter(e=>e.srcObject||e.src)";
 
 //query active tab to find audio or video tags with active src and create a volume slider for each one
 runCodeOnCurrentTab(
-    getAllValidMediaTagsCodeString + ".map(e=> {const id = `${e.tagName}_${e.srcObject.id}`; e.id = id;return { id, volume: e.volume}})"
+    getAllValidMediaTagsCodeString + ".map((e,i)=> {const id = e.id || `${e.tagName}_${i}`; e.id = id;return { id, volume: e.volume, muted: e.muted }})"
     ,
     ret => {
         ret = ret.pop();//always seems to wrap return in an array
-        //!ret || !ret.length ? createLabel('No video or audio tags found') : ret.forEach(mediaTag => createSliderPerMediaTag(mediaTag));
         if (!ret || !ret.length) {
-            createLabel('No video or audio tags found','white-space: nowrap;');
+            document.body.appendChild(createLabel('No video or audio tags found', 'white-space: nowrap;'));
         } else {
-            //createMasterSlider();
-            createLabel('Master Slider');
-            createSlider('slider-master', 1,
-                value => {
-                    [...document.getElementsByTagName('input')].forEach(e => { if (e.type === 'range') { e.value = value } });
-                    runCodeOnCurrentTab(getAllValidMediaTagsCodeString + `.forEach(e=>e.volume=${value})`, () => { });
+            const masterMutedCheckbox = createCheckbox('checkbox-master', true, muted => {
+                [...document.getElementsByTagName('input')].forEach(e => { if (e.type === 'checkbox') { e.value = e.checked = muted } });
+                runCodeOnCurrentTab(getAllValidMediaTagsCodeString + `.forEach(e=>e.muted=${muted})`);
+            });
+            const masterMutedSlider = createSlider('slider-master', 1,
+                volume => {
+                    [...document.getElementsByTagName('input')].forEach(e => { if (e.type === 'range') { e.value = volume } });
+                    runCodeOnCurrentTab(getAllValidMediaTagsCodeString + `.forEach(e=>e.volume=${volume})`);
                 }
             );
-            //ret.forEach(mediaTag => createSliderPerMediaTag(mediaTag));
-            ret.forEach(mediaTag => {
-                createLabel(mediaTag.id);
-                createSlider(mediaTag.id, mediaTag.volume, value => runCodeOnCurrentTab(`document.getElementById('${mediaTag.id}').volume = ${value}`, () => { }));
-            });
+            const masterRows = [
+                ce('tr', ce('td', createLabel('Master Volume'))),
+                ce('tr',
+                    ce('td', masterMutedSlider),
+                    ce('th', masterMutedCheckbox)
+                )
+            ]
+            const mediaRows = ret.reduce((acc, mediaTag) => {
+                // createLabel(mediaTag.id);
+                const checkbox = createCheckbox(mediaTag.id, mediaTag.muted, muted => { runCodeOnCurrentTab(`document.getElementById('${mediaTag.id}').muted = ${muted}`) });
+                const slider = createSlider(mediaTag.id, mediaTag.volume, volume => runCodeOnCurrentTab(`document.getElementById('${mediaTag.id}').volume = ${volume}`));
+                return [
+                    ...acc,
+                    ce('tr', ce('td', createLabel(mediaTag.id))),
+                    ce('tr',
+                        ce('td', slider),
+                        ce('th', checkbox)
+                    )
+                ];
+            }, ret.length > 1 ? masterRows : []);
+            document.body.appendChild(
+                ce('table',
+                    ce('thead',
+                        ce('tr',
+                            ce('th', createLabel('Tag ID')),
+                            ce('th', createLabel('Muted'))
+                        )
+                    ),
+                    ce('tbody',
+                        ...mediaRows
+                    )
+                )
+            );
+            document.getElementsByTagName('table');
         }
 
     }
 );
 
-function createLabel(text, style='') {
+//append a label to the document body, optional style string param
+function createLabel(text, style = '') {
     const label = document.createElement('label');
     label.innerHTML = text;
     label.style = style;
-    document.body.appendChild(label);
+    //document.body.appendChild(label);
+    return label;
 }
 
-//append a slider to the document with a label
-function createSlider(id, value, eventFunction) {
+//append a slider to the document body
+function createSlider(id, volume, eventFunction) {
     const volumeSlider = document.createElement('input');
     volumeSlider.type = 'range';
     volumeSlider.min = 0;
     volumeSlider.max = 1;
     volumeSlider.step = .1;
-    volumeSlider.value = value;
-    volumeSlider.id = id;
+    volumeSlider.value = volume;
+    volumeSlider.id = `slider-${id}`;
     volumeSlider.addEventListener('change', () => eventFunction(volumeSlider.value));
     volumeSlider.addEventListener('input', () => eventFunction(volumeSlider.value));
-    document.body.appendChild(volumeSlider);
+    //document.body.appendChild(volumeSlider);
+    return volumeSlider;
 }
 
-function runCodeOnCurrentTab(codeString, callback) {
+//append a checkbox to the document body
+function createCheckbox(id, muted, eventFunction) {
+    //TODO 
+    const mutedCheckbox = document.createElement('input');
+    mutedCheckbox.type = 'checkbox';
+    mutedCheckbox.id = `checkbox-${id}`;
+    mutedCheckbox.value = muted;
+    mutedCheckbox.checked = muted;
+    mutedCheckbox.addEventListener('change', () => eventFunction(mutedCheckbox.checked));
+    //document.body.appendChild(mutedCheckbox);
+    return mutedCheckbox;
+}
+
+function runCodeOnCurrentTab(codeString, callback = () => { }) {
     chrome.tabs.query(
         { active: true, currentWindow: true },
-        tabs => {
-            chrome.tabs.executeScript(tabs[0].id, { code: codeString },
-                callback)
-        }
+        tabs => { chrome.tabs.executeScript(tabs[0].id, { code: codeString }, callback) }
     );
 }
 
-
+function ce(type, ...children) { const el = document.createElement(type); children.forEach(child => { if (type === 'tr') { child.setAttribute("colspan", 3 - children.length); } el.appendChild(child); }); return el }

@@ -28,7 +28,6 @@ runCodeOnCurrentTab(
                 )
             ]
             const mediaRows = ret.reduce((acc, mediaTag) => {
-                // createLabel(mediaTag.id);
                 const checkbox = createCheckbox(mediaTag.id, mediaTag.muted, muted => { runCodeOnCurrentTab(`document.getElementById('${mediaTag.id}').muted = ${muted}`) });
                 const slider = createSlider(mediaTag.id, mediaTag.volume, volume => runCodeOnCurrentTab(`document.getElementById('${mediaTag.id}').volume = ${volume}`));
                 return [
@@ -64,7 +63,6 @@ function createLabel(text, style = '') {
     const label = document.createElement('label');
     label.innerHTML = text;
     label.style = style;
-    //document.body.appendChild(label);
     return label;
 }
 
@@ -79,20 +77,17 @@ function createSlider(id, volume, eventFunction) {
     volumeSlider.id = `slider-${id}`;
     volumeSlider.addEventListener('change', () => eventFunction(volumeSlider.value));
     volumeSlider.addEventListener('input', () => eventFunction(volumeSlider.value));
-    //document.body.appendChild(volumeSlider);
     return volumeSlider;
 }
 
 //append a checkbox to the document body
 function createCheckbox(id, muted, eventFunction) {
-    //TODO 
     const mutedCheckbox = document.createElement('input');
     mutedCheckbox.type = 'checkbox';
     mutedCheckbox.id = `checkbox-${id}`;
     mutedCheckbox.value = muted;
     mutedCheckbox.checked = muted;
     mutedCheckbox.addEventListener('change', () => eventFunction(mutedCheckbox.checked));
-    //document.body.appendChild(mutedCheckbox);
     return mutedCheckbox;
 }
 
